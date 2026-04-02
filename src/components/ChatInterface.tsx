@@ -14,11 +14,22 @@ export default function ChatInterface() {
     }
   });
 
-  const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-    append({ role: "user", content: input });
-    setInput("");
+  const onFormSubmit = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
+    
+    if (!input || !input.trim() || isLoading) {
+      return;
+    }
+
+    try {
+      append({ role: "user", content: input.trim() });
+      if (typeof setInput === 'function') {
+        setInput("");
+      }
+    } catch (err) {
+      console.error("Error inside onFormSubmit:", err);
+      alert("Failed to send message: " + String(err));
+    }
   };
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -118,9 +129,16 @@ export default function ChatInterface() {
             placeholder="Ask a question about your document..."
             onChange={handleInputChange}
             disabled={isLoading}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                onFormSubmit(e);
+              }
+            }}
           />
           <button
-            type="submit"
+            type="button" // Changed from submit to button to prevent default HTML submission quirks
+            onClick={onFormSubmit}
             disabled={isLoading || !input?.trim()}
             className="absolute right-2 p-3 bg-primary text-primary-foreground rounded-full hover:bg-blue-600 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-primary transition-all shadow-md group"
           >
