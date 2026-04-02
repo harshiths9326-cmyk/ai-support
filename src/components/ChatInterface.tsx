@@ -8,11 +8,18 @@ import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
 export default function ChatInterface() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
+  const { messages, input, setInput, handleInputChange, append, isLoading, error } = useChat({
     onError: (err) => {
       console.error("Chat API Error:", err);
     }
   });
+
+  const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+    append({ role: "user", content: input });
+    setInput("");
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -104,7 +111,7 @@ export default function ChatInterface() {
       </div>
 
       <div className="p-4 sm:p-6 border-t border-slate-700/50 bg-slate-900/60 backdrop-blur-md">
-        <form onSubmit={handleSubmit} className="relative flex items-center max-w-4xl mx-auto">
+        <form onSubmit={onFormSubmit} className="relative flex items-center max-w-4xl mx-auto">
           <input
             className="w-full bg-slate-800/80 border border-slate-600 focus:border-primary/50 rounded-full py-4 px-6 pr-14 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-primary/20 transition-all shadow-inner text-base"
             value={input}
