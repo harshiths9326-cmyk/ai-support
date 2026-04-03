@@ -39,13 +39,7 @@ ${contextText}
       temperature: 0.2, 
     });
 
-    return new Response(result.textStream, {
-      headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive"
-      }
-    });
+    return result.toTextStreamResponse();
   } catch (error: any) {
     console.error("API Chat Route Error:", error);
     return new Response(JSON.stringify({ error: error.message || "Unknown server error" }), {
