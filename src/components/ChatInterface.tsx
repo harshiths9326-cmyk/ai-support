@@ -69,7 +69,23 @@ export default function ChatInterface({ chunks }: { chunks: string[] }) {
         if (done) break;
         
         const chunk = decoder.decode(value, { stream: true });
-        assistantMessageContent += chunk;
+        
+        // Parse Vercel AI SDK protocol (0:"text" lines)
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('0:')) {
+            try {
+              // The text after 0: is a JSON string
+              assistantMessageContent += JSON.parse(line.substring(2));
+            } catch (e) {
+              // Fallback
+              assistantMessageContent += line.substring(2).replace(/^"|"$/g, '');
+            }
+          } else if (line.trim() !== '' && !line.match(/^[a-z]:/)) {
+             // Catch-all for plain text if protocol is missing
+             assistantMessageContent += line;
+          }
+        }
         
         setMessages((prev) => {
           const updated = [...prev];
