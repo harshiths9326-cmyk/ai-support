@@ -1,41 +1,93 @@
-// @ts-nocheck
 "use client";
 
-import { useChat } from "@ai-sdk/react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
+type Role = "user" | "assistant";
+interface Message {
+  id: string;
+  role: Role;
+  content: string;
+}
+
 export default function ChatInterface() {
-  const { messages, input, setInput, handleInputChange, append, isLoading, error } = useChat({
-    onError: (err) => {
-      console.error("Chat API Error:", err);
-    }
-  });
-
-  const onFormSubmit = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
-    if (e && e.preventDefault) e.preventDefault();
-    
-    if (!input || !input.trim() || isLoading) {
-      return;
-    }
-
-    try {
-      append({ role: "user", content: input.trim() });
-      if (typeof setInput === 'function') {
-        setInput("");
-      }
-    } catch (err) {
-      console.error("Error inside onFormSubmit:", err);
-      alert("Failed to send message: " + String(err));
-    }
-  };
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading, errorMsg]);
+
+  // Robust, manual chat fetch hook
+  const sendMessage = async (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!input || !input.trim() || isLoading) return;
+
+    const userMessage: Message = { id: Date.now().toString(), role: "user", content: input.trim() };
+    const newMessages = [...messages, userMessage];
+    
+    setMessages(newMessages);
+    setInput("");
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages }),
+      });
+
+      if (!response.ok) {
+        let errStr = "Server error";
+        try {
+          const resJson = await response.json();
+          errStr = resJson.error || errStr;
+        } catch { }
+        throw new Error(errStr + " (Status " + response.status + ")");
+      }
+
+      if (!response.body) throw new Error("No response body streamed");
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      
+      let assistantMessageContent = "";
+      setMessages((prev) => [
+        ...prev,
+        { id: (Date.now() + 1).toString(), role: "assistant", content: "" }
+      ]);
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        assistantMessageContent += chunk;
+        
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          if (updated[lastIndex].role === "assistant") {
+            updated[lastIndex].content = assistantMessageContent;
+          }
+          return updated;
+        });
+      }
+    } catch (err: any) {
+      console.error("Chat Failed:", err);
+      setErrorMsg(err.message || String(err));
+      alert("Chat connection error: " + (err.message || String(err)));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-[600px] w-full max-w-3xl mx-auto glass-card overflow-hidden">
@@ -53,7 +105,7 @@ export default function ChatInterface() {
             </div>
           </div>
         ) : (
-          messages.map((m: any) => (
+          messages.map((m) => (
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -103,7 +155,7 @@ export default function ChatInterface() {
           </motion.div>
         )}
 
-        {error && (
+        {errorMsg && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -114,7 +166,7 @@ export default function ChatInterface() {
             </div>
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-400/20 text-rose-200 rounded-tl-sm flex flex-col gap-1 backdrop-blur-sm shadow-sm">
               <span className="font-semibold text-rose-400 text-sm">Connection Error</span>
-              <span className="text-sm text-slate-300">{error.message || "The AI encountered an error processing your request. Please try again."}</span>
+              <span className="text-sm text-slate-300">{errorMsg}</span>
             </div>
           </motion.div>
         )}
@@ -122,23 +174,23 @@ export default function ChatInterface() {
       </div>
 
       <div className="p-4 sm:p-6 border-t border-slate-700/50 bg-slate-900/60 backdrop-blur-md">
-        <form onSubmit={onFormSubmit} className="relative flex items-center max-w-4xl mx-auto">
+        <form onSubmit={sendMessage} className="relative flex items-center max-w-4xl mx-auto">
           <input
             className="w-full bg-slate-800/80 border border-slate-600 focus:border-primary/50 rounded-full py-4 px-6 pr-14 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-primary/20 transition-all shadow-inner text-base"
             value={input}
             placeholder="Ask a question about your document..."
-            onChange={handleInputChange}
+            onChange={(e) => setInput(e.target.value)}
             disabled={isLoading}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                onFormSubmit(e);
+                sendMessage(e);
               }
             }}
           />
           <button
-            type="button" // Changed from submit to button to prevent default HTML submission quirks
-            onClick={onFormSubmit}
+            type="button"
+            onClick={sendMessage}
             disabled={isLoading || !input?.trim()}
             className="absolute right-2 p-3 bg-primary text-primary-foreground rounded-full hover:bg-blue-600 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-primary transition-all shadow-md group"
           >

@@ -1,23 +1,24 @@
-// @ts-nocheck
 import { google } from "@ai-sdk/google";
-import { streamText, type UIMessage } from "ai";
+import { streamText } from "ai";
 import { searchSimilarDocuments } from "@/lib/vector-store";
 
 export async function POST(req: Request) {
   try {
-    const { messages }: { messages: UIMessage[] } = await req.json();
-
+    const body = await req.json();
+    const messages = body.messages as any[];
     const lastMessage = messages[messages.length - 1];
     
-    // Retrieve top 4 most semantically similar chunks based on user question
-    const contextDocs = await searchSimilarDocuments(lastMessage.content, 4);
-    
-    const contextText = contextDocs.map(doc => doc.text).join('\n\n');
+    let contextText = "";
+    try {
+      const contextDocs = await searchSimilarDocuments(lastMessage.content, 4);
+      contextText = contextDocs.map(doc => doc.text).join('\n\n');
+    } catch (e) {
+      console.error("Vector store failed, using empty context log:", e);
+    }
 
     const systemPrompt = `You are a helpful, professional, and precise customer support AI. 
 Your primary directive is to answer the user's questions STRICTLY based on the following context derived from an uploaded document.
 If the answer is NOT contained in the context or cannot be logically deduced from it, you MUST politely state that you do not have that information based on the provided document.
-Do NOT make up answers. Do NOT use outside knowledge.
 
 <context>
 ${contextText}
@@ -27,12 +28,15 @@ ${contextText}
       model: google("gemini-1.5-flash"),
       system: systemPrompt,
       messages: messages,
-      temperature: 0.2, // Low temperature for more factual responses
+      temperature: 0.2, 
     });
 
     return result.toTextStreamResponse();
-  } catch (error: unknown) {
-    console.error("Chat Error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), { status: 500 });
+  } catch (error: any) {
+    console.error("API Chat Route Error:", error);
+    return new Response(JSON.stringify({ error: error.message || "Unknown server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 }
