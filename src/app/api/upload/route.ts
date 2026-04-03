@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseDocument, chunkText } from "@/lib/document-parser";
-import { addDocumentsToStore } from "@/lib/vector-store";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,10 +19,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Could not extract text from document" }, { status: 400 });
     }
 
-    const chunks = chunkText(text, 1500, 300); // 1500 chars per chunk
-    await addDocumentsToStore(chunks);
+    const chunks = chunkText(text, 1500, 300);
 
-    return NextResponse.json({ success: true, chunks: chunks.length });
+    return NextResponse.json({ success: true, chunks: chunks });
   } catch (error: unknown) {
     console.error("Upload Error:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to process document" }, { status: 500 });

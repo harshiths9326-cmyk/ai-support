@@ -12,7 +12,7 @@ interface Message {
   content: string;
 }
 
-export default function ChatInterface() {
+export default function ChatInterface({ chunks }: { chunks: string[] }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,7 @@ export default function ChatInterface() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages, documentChunks: chunks }),
       });
 
       if (!response.ok) {

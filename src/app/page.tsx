@@ -16,7 +16,7 @@ export default function Home() {
     },
   });
 
-  const [hasDocument, setHasDocument] = useState(false);
+  const [documentChunks, setDocumentChunks] = useState<string[] | null>(null);
 
   if (status === "loading") {
     return <main className="min-h-screen flex items-center justify-center"><div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div></main>;
@@ -59,7 +59,7 @@ export default function Home() {
         </motion.div>
 
         <AnimatePresence mode="wait">
-          {!hasDocument ? (
+          {!documentChunks ? (
              <motion.div
                key="upload"
                initial={{ opacity: 0, scale: 0.95 }}
@@ -68,7 +68,7 @@ export default function Home() {
                transition={{ duration: 0.4 }}
                className="mt-16"
              >
-               <UploadZone onUploadComplete={() => setHasDocument(true)} />
+               <UploadZone onUploadComplete={(chunks) => setDocumentChunks(chunks)} />
              </motion.div>
           ) : (
              <motion.div
@@ -84,13 +84,13 @@ export default function Home() {
                    Active Session
                  </h2>
                  <button 
-                   onClick={() => setHasDocument(false)}
+                   onClick={() => setDocumentChunks(null)}
                    className="text-sm text-slate-400 hover:text-white transition-colors"
                  >
                    Upload New Document
                  </button>
                </div>
-               <ChatInterface />
+               <ChatInterface chunks={documentChunks} />
              </motion.div>
           )}
         </AnimatePresence>

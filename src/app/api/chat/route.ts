@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { streamText } from "ai";
-import { searchSimilarDocuments } from "@/lib/vector-store";
+import { searchSimilarDocumentsStateless } from "@/lib/vector-store";
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +17,8 @@ export async function POST(req: Request) {
     
     let contextText = "";
     try {
-      const contextDocs = await searchSimilarDocuments(lastMessage.content, 4);
+      const documentChunks = body.documentChunks || [];
+      const contextDocs = await searchSimilarDocumentsStateless(lastMessage.content, documentChunks, 4);
       contextText = contextDocs.map(doc => doc.text).join('\n\n');
     } catch (e) {
       console.error("Vector store failed, using empty context log:", e);

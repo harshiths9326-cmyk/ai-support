@@ -6,7 +6,7 @@ import { UploadCloud, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-export default function UploadZone({ onUploadComplete }: { onUploadComplete: () => void }) {
+export default function UploadZone({ onUploadComplete }: { onUploadComplete: (chunks: string[]) => void }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -32,9 +32,10 @@ export default function UploadZone({ onUploadComplete }: { onUploadComplete: () 
         throw new Error(await response.text());
       }
 
+      const data = await response.json();
       setUploadStatus("success");
       setMessage(`Successfully processed ${file.name}`);
-      onUploadComplete();
+      onUploadComplete(data.chunks || []);
     } catch (error) {
       setUploadStatus("error");
       setMessage(error instanceof Error ? error.message : "Failed to process document");
