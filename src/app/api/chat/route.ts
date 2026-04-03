@@ -1,9 +1,16 @@
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { searchSimilarDocuments } from "@/lib/vector-store";
 
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!apiKey) {
+      throw new Error("CRITICAL: Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable in Vercel settings.");
+    }
+
+    const google = createGoogleGenerativeAI({ apiKey });
+    
     const body = await req.json();
     const messages = body.messages as any[];
     const lastMessage = messages[messages.length - 1];
