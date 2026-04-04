@@ -36,7 +36,7 @@ ${contextText}
 </context>`;
 
     const result = await generateText({
-      model: google("gemini-1.5-pro"),
+      model: google("gemini-1.5-flash"),
       system: systemPrompt,
       messages: messages,
       temperature: 0.2, 
