@@ -1,6 +1,9 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { streamText } from "ai";
+import { generateText } from "ai";
+import { NextResponse } from "next/server";
 import { searchSimilarDocumentsStateless } from "@/lib/vector-store";
+
+export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
@@ -32,19 +35,16 @@ If the answer is NOT contained in the context or cannot be logically deduced fro
 ${contextText}
 </context>`;
 
-    const result = streamText({
+    const result = await generateText({
       model: google("gemini-1.5-flash"),
       system: systemPrompt,
       messages: messages,
       temperature: 0.2, 
     });
 
-    return result.toTextStreamResponse();
+    return NextResponse.json({ text: result.text });
   } catch (error: any) {
     console.error("API Chat Route Error:", error);
-    return new Response(JSON.stringify({ error: error.message || "Unknown server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return NextResponse.json({ error: error.message || "Unknown server error" }, { status: 500 });
   }
 }

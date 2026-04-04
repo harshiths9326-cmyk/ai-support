@@ -50,52 +50,15 @@ export default function ChatInterface({ chunks }: { chunks: string[] }) {
           const resJson = await response.json();
           errStr = resJson.error || errStr;
         } catch { }
-        throw new Error(errStr + " (Status " + response.status + ")");
+        throw new Error(errStr);
       }
 
-      if (!response.body) throw new Error("No response body streamed");
+      const responseData = await response.json();
       
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      
-      let assistantMessageContent = "";
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "assistant", content: "" }
+        { id: (Date.now() + 1).toString(), role: "assistant", content: responseData.text || "No response generated." }
       ]);
-      
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        
-        // Parse Vercel AI SDK protocol (0:"text" lines)
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('0:')) {
-            try {
-              // The text after 0: is a JSON string
-              assistantMessageContent += JSON.parse(line.substring(2));
-            } catch (e) {
-              // Fallback
-              assistantMessageContent += line.substring(2).replace(/^"|"$/g, '');
-            }
-          } else if (line.trim() !== '' && !line.match(/^[a-z]:/)) {
-             // Catch-all for plain text if protocol is missing
-             assistantMessageContent += line;
-          }
-        }
-        
-        setMessages((prev) => {
-          const updated = [...prev];
-          const lastIndex = updated.length - 1;
-          if (updated[lastIndex].role === "assistant") {
-            updated[lastIndex].content = assistantMessageContent;
-          }
-          return updated;
-        });
-      }
     } catch (err: any) {
       console.error("Chat Failed:", err);
       setErrorMsg(err.message || String(err));
